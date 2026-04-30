@@ -63,8 +63,9 @@ class Page : public esphome::Component {
     this->build_ui();
     for (auto *inp : this->inputs_)
       inp->subscribe_ha_state();
-    if (this->page_active_)
-      this->apply_page_active_state_();
+    // Initial LV_EVENT_SCREEN_LOADED fires before LATE setup, so catch it here.
+    if (this->page_obj_ && lv_scr_act() == this->page_obj_)
+      this->on_page_load();
   }
   void loop() override {}
   float get_setup_priority() const override { return esphome::setup_priority::LATE; }
