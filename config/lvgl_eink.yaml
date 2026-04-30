@@ -1,0 +1,17 @@
+lvgl:
+  displays: ${eink_display}
+  buffer_size: ${eink_buffer_size}
+  color_depth: 16
+  rotation: 180
+  encoders:
+    - id: main_encoder
+      enter_button: ${eink_btn_confirm}
+      sensor:
+        left_button: ${eink_btn_up}
+        right_button: ${eink_btn_down}
+      group: actions_group
+  on_draw_end:
+    - lambda: |
+        static bool first = true;
+        if (first) { id(${eink_display}).force_full_update(); first = false; }
+    - component.update: ${eink_display}
