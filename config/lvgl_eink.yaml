@@ -1,3 +1,26 @@
+binary_sensor:
+  - id: !extend ${eink_btn_next}
+    on_press:
+      - lvgl.page.next:
+          animation: NONE
+
+  - id: !extend ${eink_btn_prev}
+    on_press:
+      - lvgl.page.previous:
+          animation: NONE
+
+  - id: !extend ${eink_btn_confirm}
+    on_press:
+      - lambda: 'auto* fp = esphome::page::Page::active; if (fp) fp->on_confirm();'
+
+  - id: !extend ${eink_btn_up}
+    on_press:
+      - lambda: 'auto* fp = esphome::page::Page::active; if (fp) fp->on_up();'
+
+  - id: !extend ${eink_btn_down}
+    on_press:
+      - lambda: 'auto* fp = esphome::page::Page::active; if (fp) fp->on_down();'
+
 lvgl:
   displays: ${eink_display}
   buffer_size: ${eink_buffer_size}
