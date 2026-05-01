@@ -1,0 +1,13 @@
+font:
+  - file: "gfonts://Roboto@700"
+    id: font_large
+    size: 28
+    bpp: 1
+  - file: "gfonts://Roboto@700"
+    id: font_medium
+    size: 22
+    bpp: 1
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 18
+    bpp: 1

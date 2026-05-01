@@ -30,7 +30,7 @@ lv_obj_t *Page::make_ticker_box(lv_obj_t *parent, lv_obj_t **label_out) {
   lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
 
   lv_obj_t *lbl = lv_label_create(box);
-  lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 3);
+  lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
   lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
   lv_label_set_text(lbl, "00");
   if (this->font_)
