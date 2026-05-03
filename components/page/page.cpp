@@ -76,22 +76,32 @@ void Page::build_ui() {
   lv_obj_set_style_border_width(divider, 0, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
   lv_obj_set_style_pad_all(divider, 0, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
 
-  // Flex column — vertical stacking only; fixed height avoids LV_SIZE_CONTENT cascade
-  int n = (int)this->rows_.size();
-  int col_h = n * ROW_H + (n > 0 ? (n - 1) * ROW_GAP : 0);
+  lv_coord_t visible_h = lv_obj_get_height(this->page_obj_) - ROW_START_Y;
+  this->rows_per_page_ = (int)visible_h / ROW_STEP;
+
   lv_obj_t *col = lv_obj_create(this->page_obj_);
+  this->col_ = col;
   lv_obj_set_pos(col, 0, ROW_START_Y);
-  lv_obj_set_size(col, PAGE_WIDTH, col_h);
+  lv_obj_set_size(col, PAGE_WIDTH, visible_h);
   lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
   lv_obj_set_style_border_width(col, 0, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
   lv_obj_set_style_pad_all(col, 0, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
   lv_obj_set_style_pad_row(col, ROW_GAP, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
-  lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scrollbar_mode(col, LV_SCROLLBAR_MODE_OFF);
   lv_obj_set_layout(col, LV_LAYOUT_FLEX);
   lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-  for (auto &row : this->rows_) {
+  this->subpage_lbl_ = lv_label_create(this->page_obj_);
+  lv_obj_align(this->subpage_lbl_, LV_ALIGN_TOP_RIGHT, -10, 14);
+  lv_label_set_text(this->subpage_lbl_, "");
+  lv_obj_set_style_text_color(this->subpage_lbl_, lv_color_make(0, 0, 0), (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
+  if (this->font_)
+    lv_obj_set_style_text_font(this->subpage_lbl_, this->font_, (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
+  lv_obj_add_flag(this->subpage_lbl_, LV_OBJ_FLAG_HIDDEN);
+
+  for (size_t row_idx = 0; row_idx < this->rows_.size(); row_idx++) {
+    auto &row = this->rows_[row_idx];
     if (row.type == RowType::TOGGLE) {
       lv_obj_t *cont = make_row_container(col);
 
@@ -113,6 +123,7 @@ void Page::build_ui() {
       auto *inp = new ToggleInput(sw);
       inp->set_entity_id(row.toggle.entity_id);
       inp->set_page_active_ptr(&this->page_active_);
+      this->input_row_.push_back(row_idx);
       this->inputs_.push_back(inp);
 
     } else if (row.type == RowType::TIME_INPUT) {
@@ -154,6 +165,8 @@ void Page::build_ui() {
       m_inp->set_entity_id(row.time_input.entity_min_id);
       m_inp->set_page_active_ptr(&this->page_active_);
 
+      this->input_row_.push_back(row_idx);
+      this->input_row_.push_back(row_idx);
       this->inputs_.push_back(h_inp);
       this->inputs_.push_back(m_inp);
 
@@ -169,6 +182,7 @@ void Page::build_ui() {
       auto *inp = new SensorLabel(lbl, row.sensor.format);
       inp->set_entity_id(row.sensor.entity_id);
       inp->set_page_active_ptr(&this->page_active_);
+      this->input_row_.push_back(row_idx);
       this->inputs_.push_back(inp);
 
     } else if (row.type == RowType::LABEL) {
@@ -208,6 +222,7 @@ void Page::build_ui() {
       auto *inp = new CheckboxInput(cb);
       inp->set_entity_id(row.checkbox.entity_id);
       inp->set_page_active_ptr(&this->page_active_);
+      this->input_row_.push_back(row_idx);
       this->inputs_.push_back(inp);
     }
   }
@@ -232,11 +247,29 @@ void Page::build_ui() {
     lv_obj_set_style_text_color(btn_lbl, lv_color_make(0, 0, 0), (uint32_t)LV_PART_MAIN | (uint32_t)LV_STATE_DEFAULT);
 
     auto *save_inp = new ActionInput(btn, this);
+    this->input_row_.push_back(this->rows_.empty() ? 0 : this->rows_.size() - 1);
     this->inputs_.push_back(save_inp);
   }
 
   lv_obj_add_event_cb(this->page_obj_, on_load_event_, LV_EVENT_SCREEN_LOADED, this);
   lv_obj_add_event_cb(this->page_obj_, on_unload_event_, LV_EVENT_SCREEN_UNLOADED, this);
+}
+
+void Page::sync_scroll_() {
+  if (!this->col_ || this->rows_per_page_ <= 0 || this->inputs_.empty())
+    return;
+  size_t row = this->input_row_[this->focused_idx_];
+  int subpage = (int)row / this->rows_per_page_;
+  int total = ((int)this->rows_.size() + this->rows_per_page_ - 1) / this->rows_per_page_;
+  lv_obj_scroll_to_y(this->col_, subpage * this->rows_per_page_ * ROW_STEP, LV_ANIM_OFF);
+  if (total > 1) {
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d/%d", subpage + 1, total);
+    lv_label_set_text(this->subpage_lbl_, buf);
+    lv_obj_clear_flag(this->subpage_lbl_, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(this->subpage_lbl_, LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 void Page::on_page_load() {
@@ -245,7 +278,10 @@ void Page::on_page_load() {
   this->page_active_ = true;
   this->focused_idx_ = 0;
   this->editing_ = false;
+  if (this->col_)
+    lv_obj_scroll_to_y(this->col_, 0, LV_ANIM_OFF);
   this->apply_page_active_state_();
+  this->sync_scroll_();
 }
 
 void Page::apply_page_active_state_() {

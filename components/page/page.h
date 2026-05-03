@@ -86,11 +86,17 @@ class Page : public esphome::Component {
 
   std::vector<RowDef> rows_;
   std::vector<BoundInput *> inputs_;
+  std::vector<size_t> input_row_;
   size_t focused_idx_{0};
   bool editing_{false};
 
+  lv_obj_t *col_{nullptr};
+  lv_obj_t *subpage_lbl_{nullptr};
+  int rows_per_page_{0};
+
   void build_ui();
   void apply_page_active_state_();
+  void sync_scroll_();
   lv_obj_t *make_ticker_box(lv_obj_t *parent, lv_obj_t **label_out);
 
   static void on_load_event_(lv_event_t *e) {
@@ -110,6 +116,7 @@ class Page : public esphome::Component {
     size_t n = this->inputs_.size();
     this->focused_idx_ = (this->focused_idx_ + n + delta) % n;
     this->inputs_[this->focused_idx_]->set_focused(true);
+    this->sync_scroll_();
   }
 };
 
